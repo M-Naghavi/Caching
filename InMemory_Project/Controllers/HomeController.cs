@@ -29,9 +29,6 @@ namespace InMemory_Project.Controllers
         {
             IList<User> model;
 
-            var s = _db.Users.Add(new User { Age = 1, Id = 1, Name = "a" });
-            var ss = _db.SaveChanges();
-
             if (!_cache.TryGetValue("users", out model))
             {
                 model = _db.Users.ToList();

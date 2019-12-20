@@ -16,9 +16,16 @@ namespace InMemory_Project
 {
     public class Startup
     {
+        string contentRoot = string.Empty;
+        public Startup(IConfiguration configuration)
+        {
+            contentRoot = configuration.GetValue<string>(WebHostDefaults.ContentRootKey);
+        }
+
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<ProjectContext>(options => options.UseSqlite("Data Source=app.sqlite"));
+            services.AddDbContext<ProjectContext>(options => options.UseSqlite($"Data Source={contentRoot}\\app.sqlite"));
+            //services.AddDbContext<ProjectContext>(options => options.UseSqlite(@"Data Source=D:\Work\GitHub\Caching\InMemory_Project\app.sqlite"));
 
             services.AddMemoryCache();
             services.AddMvc();
