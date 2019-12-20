@@ -15,36 +15,145 @@ namespace InMemory_Project.Controllers
     {
         private readonly ProjectContext _db;
         private IMemoryCache _cache;
-        private static ILogger<HomeController> _logger;
+        private static ILogger _logger;
 
         public HomeController(ProjectContext db, IMemoryCache cache, ILogger<HomeController> logger)
         {
-            _db = db;
             _cache = cache;
+            _db = db;
             _logger = logger;
         }
 
-        // in memort cahche
         public IActionResult Index()
         {
             IList<User> model;
+
             if (!_cache.TryGetValue("users", out model))
             {
                 model = _db.Users.ToList();
 
-                var cacheEntryOption = new MemoryCacheEntryOptions()
-                   .SetPriority(CacheItemPriority.NeverRemove)
-                   //.SetAbsoluteExpiration(TimeSpan.FromDays(1))
-                   .SetSlidingExpiration(TimeSpan.FromSeconds(3))
-                   .RegisterPostEvictionCallback(UserCahceEvicated);
-                _cache.Set("users", model, cacheEntryOption);
+                var cacheEntryOptions = new MemoryCacheEntryOptions()
+                    .SetPriority(CacheItemPriority.NeverRemove)
+                    .SetAbsoluteExpiration(TimeSpan.FromDays(1))
+                    //.SetSlidingExpiration(TimeSpan.FromSeconds(3))
+                    .RegisterPostEvictionCallback(UsersCacheEvicted);
+
+                _cache.Set("users", model, cacheEntryOptions);
             }
+
             return View(model);
         }
-        private static void UserCahceEvicated(object key, object value, EvictionReason reason, object state)
+
+        private static void UsersCacheEvicted(object key, object value, EvictionReason reason, object state)
         {
-            _logger.LogWarning($"users cache evicated : {reason} | state: {state}");
+            _logger.LogWarning($"Users cache evicted :{reason} | state : {state}");
+
         }
 
+        //[ResponseCache(Duration = 60)]
+        [ResponseCache(CacheProfileName = "Default")]
+        [Route("api/user")]
+        public IActionResult Get()
+        {
+            IList<User> model;
+            model = _db.Users.ToList();
+            return Ok(model);
+        }
+
+        [HttpGet]
+        public IActionResult Create()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public IActionResult Create(Models.User model)
+        {
+            _db.Users.Add(model);
+            _db.SaveChanges();
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpGet]
+        public IActionResult CreateList()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public IActionResult CreateList(IEnumerable<Models.User> model)
+        {
+            _db.Users.AddRange(model);
+            _db.SaveChanges();
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpGet]
+        public IActionResult CreateDynamic()
+        {
+            return View();
+        }
+
+        [HttpGet]
+        [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
+        public IActionResult Details(int id)
+        {
+            var user = _db.Users.Find(id);
+            return View(user);
+        }
+
+
+        [HttpGet]
+        public IActionResult Edit(int id)
+        {
+            var user = _db.Users.Find(id);
+            return View(user);
+        }
+
+        [HttpPost]
+        public IActionResult Edit(Models.User model)
+        {
+            // update cache
+
+            IList<User> cachedUsers;
+
+            if (_cache.TryGetValue("users", out cachedUsers))
+            {
+                //model = _db.Users.ToList();
+
+                var editeUser = cachedUsers.FirstOrDefault(c => c.Id == model.Id);
+                editeUser.Age = model.Age;
+                editeUser.Name = model.Name;
+
+                var cacheEntryOptions = new MemoryCacheEntryOptions()
+                    .SetPriority(CacheItemPriority.NeverRemove)
+                    .SetAbsoluteExpiration(TimeSpan.FromDays(1))
+                    //.SetSlidingExpiration(TimeSpan.FromSeconds(3))
+                    .RegisterPostEvictionCallback(UsersCacheEvicted);
+
+                _cache.Set("users", cachedUsers, cacheEntryOptions);
+            }
+
+            // update database
+            _db.Entry(model).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+            _db.SaveChanges();
+            return RedirectToAction(nameof(Index));
+        }
+
+
+        [HttpGet]
+        public IActionResult Delete(int id)
+        {
+            var user = _db.Users.Find(id);
+            return View(user);
+        }
+
+        [HttpPost]
+        public IActionResult Delete(Models.User model)
+        {
+            _db.Entry(model).State = Microsoft.EntityFrameworkCore.EntityState.Deleted;
+            _db.SaveChanges();
+            return RedirectToAction(nameof(Index));
+        }
     }
 }
