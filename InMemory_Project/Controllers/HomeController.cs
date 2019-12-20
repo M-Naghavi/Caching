@@ -14,37 +14,76 @@ namespace InMemory_Project.Controllers
     public class HomeController : Controller
     {
         private readonly ProjectContext _db;
-        private IMemoryCache _cache;
-        private static ILogger<HomeController> _logger;
-
-        public HomeController(ProjectContext db, IMemoryCache cache, ILogger<HomeController> logger)
+        public HomeController(ProjectContext dbContext)
         {
-            _db = db;
-            _cache = cache;
-            _logger = logger;
+            _db = dbContext;
         }
 
-        // in memort cahche
         public IActionResult Index()
         {
-            IList<User> model;
-            if (!_cache.TryGetValue("users", out model))
-            {
-                model = _db.Users.ToList();
-
-                var cacheEntryOption = new MemoryCacheEntryOptions()
-                   .SetPriority(CacheItemPriority.NeverRemove)
-                   //.SetAbsoluteExpiration(TimeSpan.FromDays(1))
-                   .SetSlidingExpiration(TimeSpan.FromSeconds(3))
-                   .RegisterPostEvictionCallback(UserCahceEvicated);
-                _cache.Set("users", model, cacheEntryOption);
-            }
+            var model = _db.Users;
             return View(model);
         }
-        private static void UserCahceEvicated(object key, object value, EvictionReason reason, object state)
+
+        [HttpGet]
+        public IActionResult Create()
         {
-            _logger.LogWarning($"users cache evicated : {reason} | state: {state}");
+            return View();
         }
 
+        [HttpPost]
+        public IActionResult Create(Models.User model)
+        {
+            _db.Users.Add(model);
+            _db.SaveChanges();
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateAsync(Models.User model)
+        {
+            _db.Users.Add(model);
+            await _db.SaveChangesAsync();
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpGet]
+        public IActionResult Details(int id)
+        {
+            var user = _db.Users.Find(id);
+            return View(user);
+        }
+
+
+        [HttpGet]
+        public IActionResult Edit(int id)
+        {
+            var user = _db.Users.Find(id);
+            return View(user);
+        }
+
+        [HttpPost]
+        public IActionResult Edit(Models.User model)
+        {
+            _db.Entry(model).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+            _db.SaveChanges();
+            return RedirectToAction(nameof(Index));
+        }
+
+
+        [HttpGet]
+        public IActionResult Delete(int id)
+        {
+            var user = _db.Users.Find(id);
+            return View(user);
+        }
+
+        [HttpPost]
+        public IActionResult Delete(Models.User model)
+        {
+            _db.Entry(model).State = Microsoft.EntityFrameworkCore.EntityState.Deleted;
+            _db.SaveChanges();
+            return RedirectToAction(nameof(Index));
+        }
     }
 }
