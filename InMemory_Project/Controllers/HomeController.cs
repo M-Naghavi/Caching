@@ -28,14 +28,18 @@ namespace InMemory_Project.Controllers
         public IActionResult Index()
         {
             IList<User> model;
+
+            var s = _db.Users.Add(new User { Age = 1, Id = 1, Name = "a" });
+            var ss = _db.SaveChanges();
+
             if (!_cache.TryGetValue("users", out model))
             {
                 model = _db.Users.ToList();
 
                 var cacheEntryOption = new MemoryCacheEntryOptions()
                    .SetPriority(CacheItemPriority.NeverRemove)
-                   //.SetAbsoluteExpiration(TimeSpan.FromDays(1))
-                   .SetSlidingExpiration(TimeSpan.FromSeconds(3))
+                   .SetAbsoluteExpiration(TimeSpan.FromDays(1))
+                   //.SetSlidingExpiration(TimeSpan.FromSeconds(3))
                    .RegisterPostEvictionCallback(UserCahceEvicated);
                 _cache.Set("users", model, cacheEntryOption);
             }
